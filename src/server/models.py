@@ -1,7 +1,9 @@
 from fastapi import WebSocket, WebSocketDisconnect
 import logging
 import asyncio
+import aiofiles
 import uuid
+from pathlib import Path
 from .clients import manager
 
 class Producer:
@@ -31,7 +33,7 @@ class Producer:
                 if msg.get('bytes') is not None:
                     raw_bytes = msg['bytes']
                     logging.info(f"[Server] Echoing collab data ({len(raw_bytes)} bytes)")
-                    await self.websocket.send_bytes(raw_bytes)
+                    #await self.websocket.send_bytes(raw_bytes)
                     continue
 
                 guard_text = msg.get('text')
@@ -41,10 +43,10 @@ class Producer:
 
                 logging.info(f"[Server] Raw PLY chunk ({raw[:100]}…)")
                 frames.append(raw)
-                await manager.broadcast(session_id, raw)
+                await manager.broadcast(self.session_id, raw)
 
         except WebSocketDisconnect:
-            manager.disconnect_producer(session_id, self.websocket)
+            manager.disconnect_producer(self.session_id, self.websocket)
             logging.info(f"[Server] Producer disconnected after {frame_count} frames ➔ session_id={self.session_id}")
             await self._persist_and_broadcast_file(frames)
         except RuntimeError as e:
@@ -53,13 +55,13 @@ class Producer:
         
     async def _persist_and_broadcast_file(self, frames: list[str]):
         data = "".join(frames).encode()
-
         chunk_size = 64 * 1024
         for i in range(0, len(data), chunk_size):
             chunk = data[i : i + chunk_size]
             logging.info(f"[Server] Sending PLY chunk ({len(chunk)} bytes)")
             await manager.broadcast("plyStream", chunk)
-
+        await manager.broadcast("plyStream", "__END__")
+        
         logging.info("[Server] Finished broadcasting File to clients")
         asyncio.create_task(self._async_write_file(data))
 
@@ -105,8 +107,10 @@ class Producer:
         
 
     async def _async_write_file(self, data: bytes):
-        import aiofiles
-        path = f"/files/{uuid.uuid4()}.ply"
+        # ensure output directory exists
+        output_dir = Path("files")
+        output_dir.mkdir(exist_ok=True)
+        path = output_dir / f"{uuid.uuid4()}.ply"
         async with aiofiles.open(path, "wb") as f:
             await f.write(data)
         logging.info(f"[Server] Persisted PLY to {path}")

@@ -2,6 +2,7 @@ import os
 import socket
 import uvicorn
 import logging
+from typing import Union
 
 from fastapi import FastAPI, WebSocket, status
 from starlette.middleware.cors import CORSMiddleware
@@ -41,10 +42,10 @@ async def data_streaming_endpoint(
 async def _handle(client: Union[Producer, Consumer], data_stream: str):
     if isinstance(client, Producer):
         match data_stream:
-            case "stream":
-                await client._handle_producer_frames()
             case "plyStream":
                 await client._handle_refined_data()
+            case _:
+                await client._handle_producer_frames()
     elif isinstance(client, Consumer):
         await client._handle_consumer()
 
