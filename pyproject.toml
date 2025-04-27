@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "lidar-streaming-server"
+version = "0.1.0"
+description = "WebSocket server to process streams of lidar/optical data"
+authors = ["WallHax"]
+readme = "README.md"
+packages = [
+  { include = "server", from = "src" }
+]
+[tool.poetry.scripts]
+start-server = "server.server:main"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.100.0"
+uvicorn = { version = "^0.23.0", extras = ["standard"] }
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.3.0"
+
+[build-system]
+requires = ["poetry-core>=1.4.0"]
+build-backend = "poetry.core.masonry.api"
